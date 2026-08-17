@@ -81,7 +81,7 @@ app.post("/api/explain-code", async (req, res) => {
 
   try {
     const response = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "qwen/qwen3.6-27b",
       messages,
       temperature: 0.3,
       max_tokens: 1200,
@@ -117,7 +117,7 @@ app.get("/api/health", (_req, res) => {
     uptime: Math.round(process.uptime()),
     node: process.version,
     provider: "Groq",
-    model: "llama-3.3-70b-versatile",
+    model: "qwen/qwen3.6-27b",
   });
 });
 
