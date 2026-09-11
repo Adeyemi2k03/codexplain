@@ -1,20 +1,16 @@
 "use server";
 
-interface ExplainSuccess {
+export type ExplainState = {
   success: true;
   data: {
     explanation: string;
     language: string;
     tokens: number | null;
   };
-}
-
-interface ExplainError {
+} | {
   success: false;
   error: string;
-}
-
-export type ExplainState = ExplainSuccess | ExplainError | null;
+} | null;
 
 export async function explain(
   prevState: ExplainState,
@@ -27,12 +23,11 @@ export async function explain(
     return { success: false, error: "Please paste some code before submitting." };
   }
 
-  console.log(`[action] Generating explanation for: ${language}`);
-
   try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3002/api";
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
-    const res = await fetch(`${baseUrl}/explain-code`, {
+    // Step 1 — Submit the code
+    const res = await fetch(`${baseUrl}/explanations/explain/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: code.trim(), language }),
@@ -44,16 +39,43 @@ export async function explain(
       return { success: false, error: data?.error || `Server error (${res.status})` };
     }
 
-    return { success: true, data };
+    const taskId = data.task_id;
+
+    // Step 2 — Poll for the result
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 1000)); // wait 1 second
+
+      const pollRes = await fetch(`${baseUrl}/explanations/${taskId}/`, {
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const pollData = await pollRes.json();
+
+      if (pollData.status === "COMPLETED") {
+        return {
+          success: true,
+          data: {
+            explanation: pollData.explanation,
+            language: pollData.language,
+            tokens: pollData.tokens_used,
+          },
+        };
+      }
+
+      if (pollData.status === "FAILED") {
+        return { success: false, error: pollData.error_message || "Explanation failed." };
+      }
+    }
+
+    return { success: false, error: "Request timed out. Please try again." };
+
   } catch (err) {
     const error = err as Error;
-    console.error("[action] fetch error:", error);
     return {
       success: false,
-      error:
-        error?.name === "TypeError"
-          ? "Could not reach the server. Is it running?"
-          : `Unexpected error: ${error?.message}`,
+      error: error?.name === "TypeError"
+        ? "Could not reach the server. Is it running?"
+        : `Unexpected error: ${error?.message}`,
     };
   }
 }
