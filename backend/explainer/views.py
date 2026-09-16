@@ -144,6 +144,7 @@ class MeView(APIView):
 # ─── Explainer ViewSet ─────────────────────────────────────────────────────────
 class HealthView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = []  # No throttling on health check
 
     def get(self, request) -> Response:
         return Response({
@@ -182,6 +183,15 @@ class ExplanationViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSet):
             return ExplanationHistorySerializer
         return ExplanationResponseSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Allow retrieving any explanation by ID for polling purposes.
+        """
+        from django.shortcuts import get_object_or_404
+        instance = get_object_or_404(ExplanationRequest, pk=kwargs["pk"])
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
     def get_queryset(self):
         """
         Why filter queryset per user/session:
@@ -202,7 +212,7 @@ class ExplanationViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSet):
         - 'explain' is open to everyone (core product feature)
         - 'list' and 'retrieve' require auth (history is private data)
         """
-        if self.action == "explain":
+        if self.action in ["explain", "retrieve"]:
             return [AllowAny()]
         return [IsAuthenticated()]
 

@@ -47,6 +47,7 @@ export async function explain(
 
       const pollRes = await fetch(`${baseUrl}/explanations/${taskId}/`, {
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
 
       const pollData = await pollRes.json();
