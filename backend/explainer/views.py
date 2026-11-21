@@ -27,6 +27,7 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from django.contrib.auth.models import User
 from django.conf import settings
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 from .models import ExplanationRequest
 from .serializers import (
@@ -228,7 +229,8 @@ class ExplanationViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSet):
             "Poll GET /api/explanations/{id}/ for the result."
         ),
     )
-    @action(detail=False, methods=["post"], url_path="explain")
+    @action(detail=False, methods=["post"], url_path="explain",
+        throttle_classes=[AnonRateThrottle, UserRateThrottle])
     def explain(self, request) -> Response:
         """
         POST /api/explanations/explain/
